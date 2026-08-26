@@ -152,7 +152,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
       <button class="btn ghost" id="btnImportImg">导入立绘</button>
       <button class="btn ghost" id="btnApi">模型 API</button>
       <button class="btn ghost" id="btnPrompt">查看 Prompt</button>
-      <button class="btn ghost" id="btnOpenings" style="grid-column:1/-1">开场背景</button>
+      <button class="btn ghost" id="btnOpenings">开场背景</button>
+      <button class="btn ghost" id="btnMemory">记忆</button>
     </div>
   </aside>
 
@@ -168,7 +169,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
         <button data-mode="love">恋爱</button>
         <button data-mode="online">网聊</button>
       </div>
-      <button class="icon-btn" id="btnClearChat">清空对话</button>
+      <button class="icon-btn" id="btnClearChat">清空聊天</button>
+      <button class="icon-btn" id="btnClearMem">清空记忆</button>
     </div>
     <div class="chat-scroll" id="chatScroll"></div>
     <div class="composer">
@@ -253,6 +255,24 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 <input type="file" id="fileJson" accept=".json,application/json" multiple hidden>
 <input type="file" id="fileImg" accept="image/*" hidden>
 <div class="toast" id="toast"></div>
+
+<!-- 记忆弹层 -->
+<div class="modal" id="memoryModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>角色对用户的记忆 · <span id="memCardName"></span></h3><button class="icon-btn" data-close="memoryModal">关闭</button></div>
+    <div class="modal-body">
+      <div class="f-row">
+        <label>记忆内容（每行一条事实）</label>
+        <textarea id="memText" rows="8" style="width:100%;border:1px solid var(--line);border-radius:10px;background:#fffdf8;padding:9px 12px;font-size:12.5px;line-height:1.8;resize:vertical" placeholder="如：用户在广告公司上班，常加班&#10;用户不吃香菜&#10;上周三用户提过想辞职"></textarea>
+        <div class="note">记忆独立于聊天记录持久存在，每轮对话都会注入请求（【角色对用户的记忆】块）。清空聊天不影响记忆。</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="btnMemSave" style="flex:1">保存记忆</button>
+        <button class="btn ghost" id="btnMemSum" style="flex:1">让 AI 总结对话写入</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 const $ = s => document.querySelector(s);
 const LS = { settings:'tester.settings', cards:'tester.cards', active:'tester.active',
@@ -307,7 +327,7 @@ function initCards(){
         const card = normalizeCard(j);
         const existing = cards.find(c=>c.card.name===card.name);
         if(existing){ existing.card = card; }
-        else cards.push({id:uid(), card, portrait:null, history:[]});
+        else cards.push({id:uid(), card, portrait:null, history:[], memory:[...(card.initialMemory||[])]});
       }catch(e){}
     });
     localStorage.setItem('tester.presetVer', PRESET_VERSION);
@@ -335,6 +355,7 @@ function normalizeCard(j){
   if(j._meta?.format==='character-bible' || j['L1_身份层']) return adaptBible(j);
   if(j.name){
     j.greetings = j.greetings || j.openings || [];   // 支持卡内预置开场
+    j.initialMemory = j.initialMemory || j.memory || [];  // 支持卡内预置初始记忆
     return j;                        // daily_persona/v1 或手写卡
   }
   throw new Error('无法识别的格式（需要 name 字段，或 character-bible 的 L1_身份层）');
@@ -426,6 +447,7 @@ function adaptBible(b){
     },
     relationship:{ positioning:(L4.user_position||'').split('\n')[0]||'', vibe: list(L4.stages).map(s=>s.nm).join(' → '), stages: list(L4.stages).map(s=>s.nm) },
     greetings: [...list(b.openings), ...list(L6.greetings)],
+    initialMemory: list(b.initialMemory),
     system_note: L7.post_history||'',
     prompt: P.join('\n\n'),
   };
@@ -712,8 +734,10 @@ document.querySelectorAll('.modal').forEach(m=> m.addEventListener('click', e=>{
 $('#btnPrompt').onclick = ()=>{
   const a = active();
   const op = a ? openingInstruction(a) : null;
+  const mem = a ? (a.memory||[]) : [];
   $('#promptPre').textContent = getSystemPrompt()
     + (op ? `\n\n──────── 开场背景（当前档位：${op.tier}）────────\n\n${op.text}` : '')
+    + (mem.length ? `\n\n──────── 记忆（system 位注入）────────\n\n【角色对用户的记忆】\n` + mem.map(m=>'· '+m).join('\n') : '')
     + '\n\n──────── 每轮调用末尾追加（最高优先级位置）────────\n\n' + modeInstruction();
   $('#promptModal').classList.add('show');
 };
@@ -826,7 +850,7 @@ function renderCalls(){
       ? `<span class="c-ok">✓</span> ${esc(c.cardName)} · ${esc(c.model)}`
       : `<span class="c-bad">✗</span> ${esc(c.cardName)} · ${esc(c.model)}`;
     const meta = c.ok
-      ? `system ${c.systemLen}字 · 历史${c.historyLen}条 · 开场:${{full:'完整',brief:'压缩',none:'无'}[c.openingTier]||c.openingTier||'无'} · ${c.latency}s · 回复${c.replyLen}字` + (c.usage ? ` · tok ${c.usage.prompt_tokens??'?'}→${c.usage.completion_tokens??'?'}` : '')
+      ? `system ${c.systemLen}字 · 历史${c.historyLen}条 · 开场:${{full:'完整',brief:'压缩',none:'无'}[c.openingTier]||c.openingTier||'无'}` + (c.memoryLen ? ` · 记忆${c.memoryLen}条` : '') + ` · ${c.latency}s · 回复${c.replyLen}字` + (c.usage ? ` · tok ${c.usage.prompt_tokens??'?'}→${c.usage.completion_tokens??'?'}` : '')
       : esc(c.error||'').slice(0,80);
     return `<div class="call" data-call="${i}">
       <div class="c-line1">${head}<span class="c-time">${c.time}</span></div>
@@ -870,6 +894,8 @@ async function send(){
   const reqMessages = [{role:'system', content:getSystemPrompt()}];
   const op = openingInstruction(a);
   if(op) reqMessages.push({role:'system', content:op.text});
+  const mem = a.memory || [];
+  if(mem.length) reqMessages.push({role:'system', content:'【角色对用户的记忆】\n' + mem.map(m=>'· '+m).join('\n')});
   reqMessages.push(...a.history.slice(-40), {role:'system', content:modeInstruction()});
   const reqBody = {
     model: settings.model,
@@ -882,7 +908,7 @@ async function send(){
     ok:false, time:new Date().toLocaleTimeString(),
     cardName:a.card.name, model:settings.model, temp:settings.temperature,
     systemLen:reqBody.messages[0].content.length, historyLen:a.history.length,
-    openingTier: op ? op.tier : 'none',
+    openingTier: op ? op.tier : 'none', memoryLen: mem.length,
     request:reqBody, response:'', error:'',
   };
   const t0 = performance.now();
@@ -955,8 +981,63 @@ $('#input').addEventListener('input', autosize);
 $('#btnClearChat').onclick = ()=>{
   const a = active();
   if(!a || !a.history.length) return;
-  if(!confirm(`清空与「${a.card.name}」的对话记录？`)) return;
+  if(!confirm(`清空与「${a.card.name}」的聊天记录？\n角色对用户的记忆会保留（要清记忆请用旁边的「清空记忆」）。`)) return;
   a.history = []; persist(); renderRoster(); renderChat();
+};
+$('#btnClearMem').onclick = ()=>{
+  const a = active();
+  if(!a || !(a.memory||[]).length){ toast(a ? '当前没有记忆' : '先选中一张角色卡'); return; }
+  if(!confirm(`清空「${a.card.name}」对用户的全部记忆？\n聊天记录会保留。`)) return;
+  a.memory = []; persist();
+  toast('记忆已清空');
+};
+
+/* ────────── 记忆面板 ────────── */
+$('#btnMemory').onclick = ()=>{
+  const a = active(); if(!a){ toast('先选中一张角色卡'); return; }
+  $('#memCardName').textContent = a.card.name;
+  $('#memText').value = (a.memory||[]).join('\n');
+  $('#memoryModal').classList.add('show');
+};
+$('#btnMemSave').onclick = ()=>{
+  const a = active(); if(!a) return;
+  a.memory = $('#memText').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  persist();
+  toast(`记忆已保存（${a.memory.length} 条）`);
+};
+$('#btnMemSum').onclick = async ()=>{
+  const a = active(); if(!a) return;
+  if(!a.history.length){ toast('还没有对话可总结'); return; }
+  if(!settings.baseUrl || !settings.model){ toast('请先完成模型 API 设置'); return; }
+  const btn = $('#btnMemSum'); btn.disabled = true; btn.textContent = '总结中…';
+  const transcript = a.history.slice(-40).map(m=> m.role==='user' ? `用户：${m.content}` : `${a.card.name}：${m.content}`).join('\n');
+  try{
+    const resp = await fetch(settings.baseUrl + '/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(settings.apiKey ? {Authorization:'Bearer '+settings.apiKey} : {}) },
+      body: JSON.stringify({
+        model: settings.model, temperature: 0.3, stream: false,
+        messages: [
+          {role:'system', content:'你是记忆整理助手。从对话中提取角色应当记住的关于用户的事实：身份/职业、喜好忌口、正在经历的事、两人之间的约定与共同经历。输出 3–5 条，每条一行，只写事实本身，不要编号、不要解释、不要角色台词。'},
+          {role:'user', content: transcript},
+        ],
+      }),
+    });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const j = await resp.json();
+    const text = j.choices?.[0]?.message?.content || '';
+    const items = text.split('\n').map(s=>s.replace(/^[-·\d.、\s]+/,'').trim()).filter(Boolean);
+    if(!items.length) throw new Error('总结结果为空');
+    a.memory = a.memory || [];
+    const existed = new Set(a.memory);
+    items.forEach(m=>{ if(!existed.has(m)) a.memory.push(m); });
+    persist();
+    $('#memText').value = a.memory.join('\n');
+    toast(`已写入 ${items.length} 条记忆`);
+  }catch(err){
+    toast('总结失败：' + err.message);
+  }
+  btn.disabled = false; btn.textContent = '让 AI 总结对话写入';
 };
 
 /* 移动端侧栏开关 */
