@@ -24,6 +24,16 @@ def main():
     assert marker in src, '源页面缺少 PRESETS 注入位'
     out = src.replace(marker, f'const PRESETS = {presets};')
 
+    modes_marker = 'const PRESET_MODES = null; /* __PRESET_MODES__ */'
+    assert modes_marker in out, '源页面缺少 PRESET_MODES 注入位'
+    modes_path = os.path.join(ROOT, 'config', 'modes.json')
+    if os.path.exists(modes_path):
+        modes = json.load(open(modes_path, encoding='utf-8'))
+        out = out.replace(modes_marker, f'const PRESET_MODES = {json.dumps(modes, ensure_ascii=False)};')
+        print(f'已注入关系模式配置：{len(modes)} 档')
+    else:
+        print('未找到 config/modes.json，使用页面内置默认四档')
+
     import time
     ver_marker = "const PRESET_VERSION = 'dev'; /* __PRESET_VERSION__ */"
     assert ver_marker in src, '源页面缺少 PRESET_VERSION 注入位'

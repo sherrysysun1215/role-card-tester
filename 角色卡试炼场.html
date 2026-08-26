@@ -287,6 +287,8 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 
 /* 部署分享版：内置预设角色卡（新访客只继承卡与开场预设，不含任何聊天记录） */
 const PRESETS = []; /* __PRESETS__ */
+/* 部署分享版：内置关系模式配置（deploy/config/modes.json 注入），缺省用 DEFAULT_MODES */
+const PRESET_MODES = null; /* __PRESET_MODES__ */
 
 /* 旧版单卡迁移 + 预设同步（在全部函数/常量定义就绪后，由启动段调用） */
 function initCards(){
@@ -331,7 +333,10 @@ const OUTPUT_RULES = `【输出格式】
 /* ────────── 格式适配：character-bible（L1–L7 分层）→ 内部卡结构 ────────── */
 function normalizeCard(j){
   if(j._meta?.format==='character-bible' || j['L1_身份层']) return adaptBible(j);
-  if(j.name) return j;                        // daily_persona/v1 或手写卡
+  if(j.name){
+    j.greetings = j.greetings || j.openings || [];   // 支持卡内预置开场
+    return j;                        // daily_persona/v1 或手写卡
+  }
   throw new Error('无法识别的格式（需要 name 字段，或 character-bible 的 L1_身份层）');
 }
 
@@ -420,7 +425,7 @@ function adaptBible(b){
       taboo_phrases: line(L3.speech_base,'禁用'),
     },
     relationship:{ positioning:(L4.user_position||'').split('\n')[0]||'', vibe: list(L4.stages).map(s=>s.nm).join(' → '), stages: list(L4.stages).map(s=>s.nm) },
-    greetings: list(L6.greetings),
+    greetings: [...list(b.openings), ...list(L6.greetings)],
     system_note: L7.post_history||'',
     prompt: P.join('\n\n'),
   };
@@ -552,17 +557,19 @@ $('#fileImg').onchange = e=>{
   e.target.value = '';
 };
 /* ────────── 亲密模式 ────────── */
-const MODES = {
-  first:     { label:'初遇', desc:'你们刚认识不久，还在互相试探的阶段。保持初识的分寸感：礼貌、克制、有距离的好奇；不过度关心，不谈私密话题，没有任何暧昧意味。玩笑可以有，但点到为止。' },
-  ambiguous: { label:'暧昧', desc:'你们互有好感，但谁都没有挑明。允许试探性的靠近：话里有话的关心、欲言又止、独处时的不自在；可以出现让人心头一跳的瞬间，但不直接表白、不挑明关系、不发生肢体亲密接触。' },
-  love:      { label:'恋爱', desc:'你们已经确定恋爱关系。可以自然流露爱意、偏袒与占有欲，称呼和语气体现亲密；但仍须保持角色本身的性格、语言指纹与底线——亲密不等于油腻，不等于人设崩塌。' },
-  online:    { label:'网聊', desc:'你们是通过网络认识的网友，从未线下见面。1:1 还原真实网聊状态：碎片化短句，想分几条发就分几条（换行即新气泡）；有秒回也有弧长了再回来的自然节奏；严禁任何场景、动作、神态描写，✦ 旁白在本模式禁用。他只通过文字、以及偶尔的辅助信息流露人设：分享歌曲时单独一行输出「♪ 歌名 - 歌手」；发一条类似朋友圈的动态时单独一行输出「◈ 内容」。不要解释这些格式。' },
-};
-const MODE_ORDER = ['first','ambiguous','love'];
+/* 关系模式：数组配置（id/label/desc/stageRange）。stageRange = 占关系阶段数组的比例区间 [起,止]，null = 不映射阶段 */
+const DEFAULT_MODES = [
+  { id:'first',     label:'初遇', stageRange:[0, 0.333],     desc:'你们刚认识不久，还在互相试探的阶段。保持初识的分寸感：礼貌、克制、有距离的好奇；不过度关心，不谈私密话题，没有任何暧昧意味。玩笑可以有，但点到为止。' },
+  { id:'ambiguous', label:'暧昧', stageRange:[0.333, 0.667], desc:'你们互有好感，但谁都没有挑明。允许试探性的靠近：话里有话的关心、欲言又止、独处时的不自在；可以出现让人心头一跳的瞬间，但不直接表白、不挑明关系、不发生肢体亲密接触。' },
+  { id:'love',      label:'恋爱', stageRange:[0.667, 1],     desc:'你们已经确定恋爱关系。可以自然流露爱意、偏袒与占有欲，称呼和语气体现亲密；但仍须保持角色本身的性格、语言指纹与底线——亲密不等于油腻，不等于人设崩塌。' },
+  { id:'online',    label:'网聊', stageRange:null,           desc:'你们是通过网络认识的网友，从未线下见面。1:1 还原真实网聊状态：碎片化短句，想分几条发就分几条（换行即新气泡）；有秒回也有弧长了再回来的自然节奏；严禁任何场景、动作、神态描写，✦ 旁白在本模式禁用。他只通过文字、以及偶尔的辅助信息流露人设：分享歌曲时单独一行输出「♪ 歌名 - 歌手」；发一条类似朋友圈的动态时单独一行输出「◈ 内容」。不要解释这些格式。' },
+];
+const MODES_LIST = (Array.isArray(PRESET_MODES) && PRESET_MODES.length) ? PRESET_MODES : DEFAULT_MODES;
+const MODES = Object.fromEntries(MODES_LIST.map(m=>[m.id, m]));
 
 function currentMode(){
   const a = active();
-  return (a && a.mode) || 'first';
+  return (a && a.mode && MODES[a.mode]) ? a.mode : MODES_LIST[0].id;
 }
 /* 高优注入：作为最后一条 system 消息放在全部对话历史之后（post-history 位），每轮必发 */
 function modeInstruction(){
@@ -570,14 +577,30 @@ function modeInstruction(){
   const m = MODES[currentMode()];
   let stageNote = '';
   const stages = a?.card?.relationship?.stages;
-  if(currentMode()!=='online' && stages && stages.length){
-    const n = stages.length, t1 = Math.ceil(n/3), t2 = Math.ceil(2*n/3);
-    const range = currentMode()==='first' ? stages.slice(0,t1)
-                : currentMode()==='ambiguous' ? stages.slice(t1,t2)
-                : stages.slice(t2);
+  if(m.stageRange && stages && stages.length){
+    const n = stages.length;
+    const s = Math.round(m.stageRange[0]*n);
+    const e = Math.max(s+1, Math.round(m.stageRange[1]*n));
+    const range = stages.slice(s, e);
     if(range.length) stageNote = `\n对应人设中的关系阶段：${range.join('、')}。其余阶段的行为方式本轮禁用。`;
   }
-  return `【当前亲密模式：${m.label}】\n${m.desc}${stageNote}\n此指令优先级高于人设中的默认关系进度；模式只调整关系温度，不改变角色的性格、口吻与禁忌。`;
+  return `【当前亲密模式：${m.label}】\n${m.desc}${stageNote}\n此指令优先级高于人设中的默认关系进度；模式只调整关系温度，不改变角色的性格、口吻与禁忌。\n场景只是你们所在的地方，不是话题范围。不要主动把话题拉回场景或本职工作；\n对方聊什么就聊什么，可以自由漂移到任何话题。`;
+}
+/* 顶栏模式切换按钮按配置动态渲染 */
+function renderModeSeg(){
+  $('#modeSeg').innerHTML = MODES_LIST.map(m=>`<button data-mode="${esc(m.id)}">${esc(m.label)}</button>`).join('');
+  document.querySelectorAll('#modeSeg button').forEach(b=> b.classList.toggle('on', b.dataset.mode===currentMode()));
+}
+
+/* 开场背景三档衰减：开局完整注入破冰 → 中段压成一句 → 后期完全撤出 */
+function openingInstruction(a){
+  if(!a || !a.opening) return null;
+  const n = a.history.length;
+  if(n <= 5)  return { tier:'full',  text:`【开场背景】\n${a.opening.sc}` };
+  if(n <= 16) return { tier:'brief', text: a.opening.nm
+                ? `【背景】你们是在${a.opening.nm}认识的。这是背景，不是话题。`
+                : `【背景】${a.opening.nm}` };
+  return null;
 }
 
 /* ────────── 开场背景 ────────── */
@@ -651,7 +674,7 @@ function renderTop(){
     : '?';
   const op = a?.opening ? ` · 开场：${a.opening.nm}` : '';
   $('#topModel').textContent = (settings.model ? `${settings.model} · temp ${settings.temperature}` : '未配置模型') + op;
-  document.querySelectorAll('#modeSeg button').forEach(b=> b.classList.toggle('on', b.dataset.mode===currentMode()));
+  renderModeSeg();
 }
 
 $('#modeSeg').addEventListener('click', e=>{
@@ -688,8 +711,9 @@ document.querySelectorAll('.modal').forEach(m=> m.addEventListener('click', e=>{
 
 $('#btnPrompt').onclick = ()=>{
   const a = active();
+  const op = a ? openingInstruction(a) : null;
   $('#promptPre').textContent = getSystemPrompt()
-    + (a?.opening?.sc ? `\n\n──────── 开场背景（system 位注入）────────\n\n【开场背景】\n${a.opening.sc}` : '')
+    + (op ? `\n\n──────── 开场背景（当前档位：${op.tier}）────────\n\n${op.text}` : '')
     + '\n\n──────── 每轮调用末尾追加（最高优先级位置）────────\n\n' + modeInstruction();
   $('#promptModal').classList.add('show');
 };
@@ -802,7 +826,7 @@ function renderCalls(){
       ? `<span class="c-ok">✓</span> ${esc(c.cardName)} · ${esc(c.model)}`
       : `<span class="c-bad">✗</span> ${esc(c.cardName)} · ${esc(c.model)}`;
     const meta = c.ok
-      ? `system ${c.systemLen}字 · 历史${c.historyLen}条 · ${c.latency}s · 回复${c.replyLen}字` + (c.usage ? ` · tok ${c.usage.prompt_tokens??'?'}→${c.usage.completion_tokens??'?'}` : '')
+      ? `system ${c.systemLen}字 · 历史${c.historyLen}条 · 开场:${{full:'完整',brief:'压缩',none:'无'}[c.openingTier]||c.openingTier||'无'} · ${c.latency}s · 回复${c.replyLen}字` + (c.usage ? ` · tok ${c.usage.prompt_tokens??'?'}→${c.usage.completion_tokens??'?'}` : '')
       : esc(c.error||'').slice(0,80);
     return `<div class="call" data-call="${i}">
       <div class="c-line1">${head}<span class="c-time">${c.time}</span></div>
@@ -844,7 +868,8 @@ async function send(){
   let acc = '', usage = null;
 
   const reqMessages = [{role:'system', content:getSystemPrompt()}];
-  if(a.opening?.sc) reqMessages.push({role:'system', content:'【开场背景】\n' + a.opening.sc});
+  const op = openingInstruction(a);
+  if(op) reqMessages.push({role:'system', content:op.text});
   reqMessages.push(...a.history.slice(-40), {role:'system', content:modeInstruction()});
   const reqBody = {
     model: settings.model,
@@ -857,6 +882,7 @@ async function send(){
     ok:false, time:new Date().toLocaleTimeString(),
     cardName:a.card.name, model:settings.model, temp:settings.temperature,
     systemLen:reqBody.messages[0].content.length, historyLen:a.history.length,
+    openingTier: op ? op.tier : 'none',
     request:reqBody, response:'', error:'',
   };
   const t0 = performance.now();
