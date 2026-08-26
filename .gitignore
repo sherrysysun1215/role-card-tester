@@ -1,0 +1,4 @@
+shared_api.json
+share/
+.DS_Store
+__pycache__/

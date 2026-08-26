@@ -1,0 +1,947 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>角色卡试炼场 · 对话测试</title><style>
+:root{
+  --ink:#171310;
+  --ink-2:#2b231e;
+  --paper:#fff8ef;
+  --canvas:#eadfce;
+  --canvas-2:#f3eadf;
+  --gold:#d59645;
+  --gold-soft:#f2d5a5;
+  --ember:#b65b4a;
+  --pine:#4a6b58;
+  --muted:#79695d;
+  --line:rgba(65,45,31,.14);
+  --shadow:0 18px 48px rgba(46,31,22,.2);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--canvas)}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.serif{font-family:"Songti SC","STSong","SimSun",serif}
+
+.app{display:grid;grid-template-columns:250px minmax(0,1fr) 330px;grid-template-rows:minmax(0,1fr);height:100dvh;max-width:1440px;margin:0 auto;background:var(--canvas);overflow:hidden}
+@media(max-width:1100px){.app{grid-template-columns:250px minmax(0,1fr)}.calls{display:none}}
+@media(max-width:820px){.app{grid-template-columns:minmax(0,1fr)}.roster{display:none}.roster.mobile-open{display:flex;position:fixed;inset:0;z-index:90;background:var(--canvas-2)}}
+
+/* ── 左栏：角色列表 ── */
+.roster{border-right:1px solid var(--line);background:var(--canvas-2);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.roster-head{padding:14px 14px 8px;display:flex;align-items:center;justify-content:space-between}
+.roster-head h2{font-size:15px}
+.roster-head .cnt{color:var(--muted);font-size:10px}
+.roster-list{flex:1;overflow-y:auto;padding:0 10px;min-height:0}
+.rcard{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:14px;cursor:pointer;border:1px solid transparent;margin-bottom:6px;position:relative}
+.rcard:hover{background:var(--paper)}
+.rcard.active{background:var(--paper);border-color:var(--gold);box-shadow:0 2px 10px rgba(46,31,22,.06)}
+.rcard .r-avatar{width:42px;height:42px;border-radius:12px;object-fit:cover;background:var(--gold-soft);display:grid;place-items:center;font-size:16px;overflow:hidden;flex:none}
+.rcard .r-avatar img{width:100%;height:100%;object-fit:cover}
+.rcard .r-meta{flex:1;min-width:0}
+.rcard .r-name{font-size:13.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard .r-sub{color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard .r-del{border:0;background:transparent;color:var(--ember);font-size:14px;border-radius:8px;width:22px;height:22px;display:none;flex:none}
+.rcard:hover .r-del{display:grid;place-items:center}
+.rcard .r-msgs{color:var(--muted);font-size:9px;flex:none}
+.roster-empty{padding:24px 14px;color:var(--muted);font-size:11.5px;text-align:center;line-height:2}
+.card-detail{margin:4px 10px 8px;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;font-size:11px;color:var(--ink-2);line-height:1.9;display:none;max-height:220px;overflow-y:auto}
+.card-detail.show{display:block}
+.card-detail b{color:var(--ink)}
+.greet-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.roster-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 14px;border-top:1px solid var(--line)}
+.btn{border:0;border-radius:12px;min-height:38px;padding:0 10px;font-weight:700;font-size:12px;background:var(--gold);color:var(--ink)}
+.btn.ghost{background:var(--paper);border:1px solid var(--line);font-weight:650}
+.btn:hover{filter:brightness(.97)}
+.linklike{background:none;border:0;color:var(--gold);font-size:10.5px;font-weight:700;padding:2px}
+
+/* ── 中栏：聊天 ── */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.chat-top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(255,248,239,.96);border-bottom:1px solid var(--line);flex:none}
+.chat-top .avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:var(--gold-soft);display:grid;place-items:center;font-size:16px;overflow:hidden;flex:none}
+.chat-top .avatar img{width:100%;height:100%;object-fit:cover}
+.chat-top .who{flex:1;min-width:0}
+.chat-top .who b{font-size:14px}
+.chat-top .who span{display:block;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-height:32px;padding:0 10px;font-size:11.5px;font-weight:650;white-space:nowrap}
+.icon-btn:hover{background:var(--gold-soft)}
+.seg{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;flex:none}
+.seg button{border:0;background:var(--paper);padding:0 10px;min-height:32px;font-size:11.5px;font-weight:650;color:var(--muted)}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--ink);color:var(--gold-soft)}
+@media(max-width:560px){.seg button{padding:0 7px;font-size:10.5px}}
+
+.chat-scroll{flex:1;min-height:0;overflow-y:auto;padding:18px 16px 8px;overscroll-behavior:contain}
+.msg{display:flex;gap:10px;margin-bottom:14px;max-width:82%}
+.msg .m-avatar{width:34px;height:34px;border-radius:50%;flex:none;overflow:hidden;background:var(--gold-soft);display:grid;place-items:center;font-size:14px}
+.msg .m-avatar img{width:100%;height:100%;object-fit:cover}
+.bubble{background:var(--paper);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:10px 14px;font-size:13.5px;line-height:1.85;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 8px rgba(46,31,22,.05)}
+.msg.user{margin-left:auto;flex-direction:row-reverse}
+.msg.user .bubble{background:var(--ink);color:var(--paper);border:0;border-radius:16px 4px 16px 16px}
+.msg.user .m-avatar{background:var(--ink);color:var(--gold-soft)}
+.msg.sys{max-width:100%;justify-content:center}
+.msg.sys .bubble{background:transparent;border:1px dashed var(--line);color:var(--muted);font-size:11.5px;border-radius:12px;box-shadow:none;text-align:center}
+.msg.narr{max-width:92%;margin-left:auto;margin-right:auto;justify-content:center}
+.msg.narr .bubble{background:transparent;border:0;color:var(--muted);font-size:12px;line-height:1.9;box-shadow:none;text-align:center;letter-spacing:.06em}
+.msg.narr .bubble::before{content:'✦ ';color:var(--gold)}
+.msg.song,.msg.moment{max-width:82%}
+.msg.song .bubble,.msg.moment .bubble{border-color:var(--gold);background:linear-gradient(135deg,#fffdf8,var(--gold-soft));font-size:12.5px}
+.msg.song .bubble::before{content:'♪ ';color:var(--ember);font-weight:700}
+.msg.moment .bubble::before{content:'◈ 朋友圈 · ';color:var(--muted);font-size:10px;letter-spacing:.05em}
+.msg.err .bubble{border-color:rgba(182,91,74,.5);color:var(--ember);background:rgba(182,91,74,.06)}
+.typing::after{content:'▍';color:var(--gold);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+.composer{flex:none;border-top:1px solid var(--line);background:var(--paper);padding:10px 14px;display:flex;gap:10px;align-items:flex-end}
+.composer textarea{flex:1;border:1px solid var(--line);border-radius:14px;background:#fffdf8;padding:10px 14px;font-size:13.5px;line-height:1.6;resize:none;max-height:120px}
+.send{border:0;border-radius:14px;background:var(--gold);color:var(--ink);font-weight:800;padding:0 18px;height:42px}
+.send:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── 右栏：调用日志 ── */
+.calls{border-left:1px solid var(--line);background:var(--canvas-2);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.calls-head{padding:14px 14px 8px;display:flex;align-items:center;justify-content:space-between}
+.calls-head h2{font-size:15px}
+.calls-list{flex:1;overflow-y:auto;padding:0 10px 14px;min-height:0}
+.call{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px;font-size:11px;line-height:1.7;cursor:pointer}
+.call:hover{border-color:var(--gold)}
+.call .c-line1{display:flex;align-items:center;gap:6px;font-weight:750}
+.call .c-ok{color:var(--pine)}
+.call .c-bad{color:var(--ember)}
+.call .c-time{margin-left:auto;color:var(--muted);font-weight:400;font-size:10px}
+.call .c-meta{color:var(--muted);font-size:10px;margin-top:2px}
+.call .c-detail{display:none;margin-top:8px}
+.call.open .c-detail{display:block}
+.call .c-detail h4{font-size:10px;color:var(--muted);margin:6px 0 3px;letter-spacing:.06em}
+.call .c-detail pre{white-space:pre-wrap;word-break:break-word;font:10px/1.6 ui-monospace,Menlo,monospace;background:var(--ink);color:#e8ddcb;border-radius:8px;padding:8px;max-height:240px;overflow-y:auto}
+.calls-empty{padding:24px 14px;color:var(--muted);font-size:11.5px;text-align:center;line-height:2}
+
+/* ── 弹层 / 提示 ── */
+.modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;background:rgba(23,19,16,.55);padding:20px}
+.modal.show{display:grid}
+.modal-box{width:min(560px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--paper);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+.modal-box.wide{width:min(760px,100%)}
+.modal-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.modal-head h3{font-size:15px;flex:1}
+.modal-body{overflow-y:auto;padding:16px}
+.modal-body pre{white-space:pre-wrap;word-break:break-word;font:12px/1.7 ui-monospace,Menlo,monospace;background:var(--ink);color:#e8ddcb;border-radius:12px;padding:14px}
+.f-row{margin-bottom:12px}
+.f-row label{display:block;font-size:11.5px;font-weight:750;margin-bottom:4px}
+.f-row input{width:100%;border:1px solid var(--line);border-radius:10px;background:#fffdf8;padding:9px 12px;font-size:13px}
+.f-row .note{color:var(--muted);font-size:10.5px;margin-top:3px;line-height:1.6}
+.f-2col{display:grid;grid-template-columns:1fr 120px;gap:10px}
+.op-item{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px;font-size:11.5px;background:#fffdf8}
+.op-item.on{border-color:var(--gold);background:var(--gold-soft)}
+.op-item .op-nm{font-weight:750;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.op-item .op-sc{color:var(--muted);margin-top:3px;line-height:1.7;white-space:pre-wrap}
+.op-item .op-acts{margin-top:6px;display:flex;gap:6px}
+.op-src{font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:200;background:var(--ink);color:var(--gold-soft);padding:10px 18px;border-radius:12px;font-size:13px;display:none;box-shadow:var(--shadow)}
+.toast.show{display:block}
+</style></head><body>
+
+<div class="app">
+  <!-- 左栏：角色列表 -->
+  <aside class="roster" id="roster">
+    <div class="roster-head">
+      <h2 class="serif">角色</h2>
+      <span class="cnt" id="rosterCnt">0 张卡</span>
+      <button class="linklike" id="btnDetail">设定 ▾</button>
+    </div>
+    <div class="card-detail" id="cardDetail"></div>
+    <div class="roster-list" id="rosterList"></div>
+    <div class="roster-actions">
+      <button class="btn" id="btnImportJson">＋ 导入角色卡</button>
+      <button class="btn ghost" id="btnImportImg">导入立绘</button>
+      <button class="btn ghost" id="btnApi">模型 API</button>
+      <button class="btn ghost" id="btnPrompt">查看 Prompt</button>
+      <button class="btn ghost" id="btnOpenings" style="grid-column:1/-1">开场背景</button>
+    </div>
+  </aside>
+
+  <!-- 中栏：聊天 -->
+  <main class="main">
+    <div class="chat-top">
+      <button class="icon-btn" id="btnSide" style="display:none">☰ 角色</button>
+      <div class="avatar" id="topAvatar">?</div>
+      <div class="who"><b id="topName">角色卡试炼场</b><span id="topModel">未配置模型</span></div>
+      <div class="seg" id="modeSeg">
+        <button data-mode="first">初遇</button>
+        <button data-mode="ambiguous">暧昧</button>
+        <button data-mode="love">恋爱</button>
+        <button data-mode="online">网聊</button>
+      </div>
+      <button class="icon-btn" id="btnClearChat">清空对话</button>
+    </div>
+    <div class="chat-scroll" id="chatScroll"></div>
+    <div class="composer">
+      <textarea id="input" rows="1" placeholder="说点什么……（Enter 发送，Shift+Enter 换行）"></textarea>
+      <button class="send" id="btnSend">发送</button>
+    </div>
+  </main>
+
+  <!-- 右栏：调用日志 -->
+  <aside class="calls">
+    <div class="calls-head">
+      <h2 class="serif">调用日志</h2>
+      <button class="linklike" id="btnClearCalls">清空</button>
+    </div>
+    <div class="calls-list" id="callsList">
+      <div class="calls-empty">尚未调用<br>每发一条消息，这里记录<br>完整请求包与响应</div>
+    </div>
+  </aside>
+</div>
+
+<!-- API 设置弹层 -->
+<div class="modal" id="apiModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>模型 API 设置</h3><button class="icon-btn" data-close="apiModal">关闭</button></div>
+    <div class="modal-body">
+      <div class="f-row">
+        <label>API 地址（OpenAI 兼容接口）</label>
+        <input id="setBase" placeholder="https://api.openai.com/v1">
+        <div class="note">支持 OpenAI / DeepSeek / Kimi（https://api.moonshot.cn/v1）/ 通义兼容模式 / 本地 vLLM、Ollama 等任何 OpenAI 兼容端点。注意：https 页面调用 http 接口会被浏览器拦截（混合内容）。</div>
+      </div>
+      <div class="f-row">
+        <label>API Key</label>
+        <input id="setKey" type="password" placeholder="sk-...">
+        <div class="note">Key 只存在你自己浏览器的 localStorage，不会上传到任何地方。</div>
+      </div>
+      <div class="f-2col">
+        <div class="f-row">
+          <label>模型名</label>
+          <input id="setModel" placeholder="如：kimi-k2 / deepseek-chat / gpt-4o">
+        </div>
+        <div class="f-row">
+          <label>温度</label>
+          <input id="setTemp" type="number" min="0" max="2" step="0.1" value="0.9">
+        </div>
+      </div>
+      <button class="btn" id="btnSaveApi" style="width:100%">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt 预览弹层 -->
+<div class="modal" id="promptModal">
+  <div class="modal-box wide">
+    <div class="modal-head"><h3>发送给模型的 System Prompt</h3>
+      <button class="icon-btn" id="btnCopyPrompt">复制</button>
+      <button class="icon-btn" data-close="promptModal">关闭</button></div>
+    <div class="modal-body"><pre id="promptPre"></pre></div>
+  </div>
+</div>
+
+<!-- 开场背景弹层 -->
+<div class="modal" id="openingModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>开场背景 · <span id="openingCardName"></span></h3><button class="icon-btn" data-close="openingModal">关闭</button></div>
+    <div class="modal-body">
+      <div id="openingList"></div>
+      <div class="f-row" style="margin-top:14px"><label>新建开场背景</label>
+        <input id="opName" placeholder="名称，如：凌晨的私信">
+      </div>
+      <div class="f-row">
+        <input id="opText" placeholder="背景描述：这段对话在什么情境下开始">
+        <div class="note">启用后随每次请求注入（system 位），直到停用。仅对当前角色生效。</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="btnOpSave" style="flex:1">保存并启用</button>
+        <button class="btn ghost" id="btnOpOff" style="flex:1">停用开场背景</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileJson" accept=".json,application/json" multiple hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+<div class="toast" id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const LS = { settings:'tester.settings', cards:'tester.cards', active:'tester.active',
+             // 旧版单卡键（迁移用）：
+             oldCard:'tester.card', oldPortrait:'tester.portrait', oldHistory:'tester.history' };
+
+/* 部署分享版：预设版本号（构建时注入时间戳），访客端据此增量同步预设卡 */
+const PRESET_VERSION = 'dev'; /* __PRESET_VERSION__ */
+/* 部署分享版可注入共享 API 配置：{baseUrl, apiKey, model, temperature} */
+const SHARED_API = null; /* __SHARED_API__ */
+
+let settings = load(LS.settings, null);
+/* 共享 API 配置发生变化时覆盖访客端设置（访客本地修改在下一次配置变更前有效） */
+if(SHARED_API){
+  const apiSig = JSON.stringify(SHARED_API);
+  if(localStorage.getItem('tester.apiSig') !== apiSig){
+    settings = SHARED_API;
+    localStorage.setItem(LS.settings, JSON.stringify(settings));
+    localStorage.setItem('tester.apiSig', apiSig);
+  }
+}
+settings = settings || {baseUrl:'https://api.openai.com/v1', apiKey:'', model:'', temperature:0.9};
+let cards = load(LS.cards, []);                 // [{id, card, portrait, history}]
+let activeId = localStorage.getItem(LS.active) || null;
+let calls = [];                                  // 调用日志（内存，不持久化）
+let sending = false;
+
+function load(k, def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def; }catch(e){ return def; } }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* 部署分享版：内置预设角色卡（新访客只继承卡与开场预设，不含任何聊天记录） */
+const PRESETS = []; /* __PRESETS__ */
+
+/* 旧版单卡迁移 + 预设同步（在全部函数/常量定义就绪后，由启动段调用） */
+function initCards(){
+  if(!cards.length){
+    const oc = load(LS.oldCard, null);
+    if(oc){
+      cards = [{ id:uid(), card:oc, portrait:localStorage.getItem(LS.oldPortrait)||null, history:load(LS.oldHistory,[]) }];
+      activeId = cards[0].id;
+      localStorage.removeItem(LS.oldCard); localStorage.removeItem(LS.oldPortrait); localStorage.removeItem(LS.oldHistory);
+    }
+  }
+  /* 预设同步：版本变化时按名字合并（卡内容覆盖；访客的聊天/立绘/模式/开场选择保留），新卡自动追加 */
+  if(PRESETS.length && localStorage.getItem('tester.presetVer') !== PRESET_VERSION){
+    PRESETS.forEach(j=>{
+      try{
+        const card = normalizeCard(j);
+        const existing = cards.find(c=>c.card.name===card.name);
+        if(existing){ existing.card = card; }
+        else cards.push({id:uid(), card, portrait:null, history:[]});
+      }catch(e){}
+    });
+    localStorage.setItem('tester.presetVer', PRESET_VERSION);
+  }
+  if(!activeId && cards.length) activeId = cards[0].id;
+  persist();
+}
+function active(){ return cards.find(c=>c.id===activeId) || null; }
+function persist(){
+  try{
+    localStorage.setItem(LS.cards, JSON.stringify(cards));
+    localStorage.setItem(LS.active, activeId||'');
+  }catch(e){ toast('本地存储已满（立绘过大？），更改仅本次会话生效'); }
+}
+
+/* 日常聊天输出约定：角色只输出对话，情景描述走单独的剧情旁白（✦ 开头） */
+const OUTPUT_RULES = `【输出格式】
+- 你只输出角色的对话内容：不写动作、神态、心理、场景描写，不使用任何括号。
+- 若确需情景或氛围描述，单独成行并以「✦」开头——它会作为剧情旁白单独展示，不会混进对话。
+- 回复简短自然，符合日常聊天节奏，一次回复里最多一句认真的话。
+- 设定示例中出现的括号动作仅用于说明语感，实际输出一律不用。`;
+
+/* ────────── 格式适配：character-bible（L1–L7 分层）→ 内部卡结构 ────────── */
+function normalizeCard(j){
+  if(j._meta?.format==='character-bible' || j['L1_身份层']) return adaptBible(j);
+  if(j.name) return j;                        // daily_persona/v1 或手写卡
+  throw new Error('无法识别的格式（需要 name 字段，或 character-bible 的 L1_身份层）');
+}
+
+function adaptBible(b){
+  const L1=b['L1_身份层']||{}, L2=b['L2_内核层']||{}, L3=b['L3_表现层']||{},
+        L4=b['L4_关系层']||{}, L5=b['L5_世界层']||{}, L6=b['L6_内容层']||{}, L7=b['L7_运行层']||{};
+  const list = x => Array.isArray(x)?x.filter(Boolean):[];
+  const ab = x => (x && x.b) ? `${x.a}——${x.b}` : (x?.a||'');
+  const line = (t,k)=> ((t||'').split('\n').find(l=>l.startsWith(k))||'').replace(/^[^：]*：/,'');
+
+  const P = [];
+  const blk = (t, arr)=>{ const body = arr.filter(Boolean); if(body.length) P.push(`【${t}】\n${body.join('\n')}`); };
+
+  P.push(`你是${L1.name||'角色'}。${(L2.essence||'').split('\n').filter(Boolean).join('')}`);
+  blk('身份', [
+    L1.name_alt && `名字的另一面：${L1.name_alt}`,
+    L1.age_gender, L1.appearance,
+    list(L1.outfit).length && '着装：\n· ' + list(L1.outfit).join('\n· '),
+    list(L1.signature_prop).length && '随身之物：\n· ' + list(L1.signature_prop).join('\n· '),
+    L1.origin && `出身：${L1.origin}`,
+    L1.occupation && `职业：${L1.occupation}`,
+    L1.daily && `日常：${L1.daily}`,
+  ]);
+  blk('内核', [
+    L2.wound && `伤口（不主动提及，但塑造他的一切反应）：${L2.wound}`,
+    L2.belief && `他信的理：${L2.belief}`,
+    L2.identity && `他示人的样子：${L2.identity}`,
+    L2.inner_conflict && `内在矛盾：${L2.inner_conflict}`,
+    L2.psych_need && `心理所需：${L2.psych_need}`,
+    L2.moral_need && `道德所需：${L2.moral_need}`,
+    L2.desire && `欲望：${L2.desire}`,
+    list(L2.values_yes).length && '信条：\n' + list(L2.values_yes).map(v=>'· '+v).join('\n'),
+    list(L2.values_no).length && '反感：\n' + list(L2.values_no).map(v=>'· '+v).join('\n'),
+    list(L2.never).length && '绝不做：\n' + list(L2.never).map(v=>'· '+v).join('\n'),
+  ]);
+  blk('表现', [
+    list(L3.traits).length && '特质：\n' + list(L3.traits).map(v=>'· '+v).join('\n'),
+    list(L3.contrast).length && '反差：\n' + list(L3.contrast).map(c=>`· ${c.a} ｜ ${c.b}`).join('\n'),
+    list(L3.likes).length && '喜欢：\n' + list(L3.likes).map(c=>'· '+ab(c)).join('\n'),
+    list(L3.dislikes).length && '不喜：\n' + list(L3.dislikes).map(c=>'· '+ab(c)).join('\n'),
+    L3.speech_base && `语言底色：${L3.speech_base}`,
+    list(L3.speech_modes).length && '说话模式：\n' + list(L3.speech_modes).map(m=>`· ${m.nm}：${m.ds}${m.ex?'\n  例：'+m.ex:''}`).join('\n'),
+    list(L3.emotion_tiers).length && '情绪档位：\n' + list(L3.emotion_tiers).map(c=>`· ${c.a}：${c.b}`).join('\n'),
+    list(L3.gestures).length && '标志性动作：' + list(L3.gestures).join('、'),
+  ]);
+  blk('关系', [
+    L4.user_slot && `用户设定限制：${L4.user_slot}`,
+    L4.user_position && `用户于他：${L4.user_position}`,
+    list(L4.stages).length && '关系阶段（慢热推进，从第 1 阶段开始，按互动深度逐步升档）：\n' + list(L4.stages).map((s,i)=>`${i+1}. ${s.nm}（${s.hold}）：${s.sp}${s.ex?'\n   例：'+s.ex:''}`).join('\n'),
+    list(L4.signal).length && '阶段信号：\n' + list(L4.signal).map(c=>'· '+ab(c)).filter(s=>s!=='· ').join('\n'),
+    list(L4.bottom_line).length && '关系底线：\n' + list(L4.bottom_line).map(v=>'· '+v).join('\n'),
+  ]);
+  blk('世界', [
+    L5.world && `世界基调：${L5.world}`,
+    L5.main_scene && `主场景：${L5.main_scene}`,
+    list(L5.sub_scenes).length && '子场景：\n' + list(L5.sub_scenes).map(c=>'· '+ab(c)).join('\n'),
+    list(L5.npc).length && '可出现的 NPC：\n' + list(L5.npc).map(c=>'· '+ab(c)).join('\n'),
+    L5.timeline && `时间线：${L5.timeline}`,
+  ]);
+  blk('内容素材', [
+    L6.first_time_flow && `初见流程：${L6.first_time_flow}`,
+    list(L6.greetings).length && '开场白备选：\n' + list(L6.greetings).map(g=>`· ${g.nm}｜场景：${g.sc}\n  ${g.ex}`).join('\n'),
+    list(L6.bio_fragments).length && '背景碎片（聊到相关话题时可自然带出）：\n' + list(L6.bio_fragments).map(f=>`· ${f.nm}：${f.ex}`).join('\n'),
+    list(L6.easter).length && '彩蛋反应：\n' + list(L6.easter).map(c=>'· '+ab(c)).join('\n'),
+    L6.mes_example && `示例对话：\n${L6.mes_example}`,
+  ]);
+  if(L7.post_history) P.push('【保持人设】\n' + L7.post_history);
+  P.push(OUTPUT_RULES);
+
+  return {
+    schema:'character-bible/v1',
+    name: L1.name||'未命名',
+    one_liner: (L2.identity||'').split('\n')[0]||'',
+    intro: (L1.occupation||'').split('\n')[0]||'',
+    tags: (L7.tags||'').split(/[\/／,，]/).map(s=>s.trim()).filter(Boolean),
+    profile:{ aliases:(L1.name_alt||'').split('\n')[0]||'', age:L1.age_gender||'', role:(L1.occupation||'').split('\n')[0]||'' },
+    personality:{
+      traits: list(L3.traits).map(t=>t.split('——')[0]),
+      tone: (L3.speech_base||'').split('\n')[0]||'',
+      contradiction: (L2.inner_conflict||'').split('\n')[0]||'',
+    },
+    speech_style:{
+      rhythm: (L3.speech_base||'').split('\n')[0]||'',
+      particles: line(L3.speech_base,'高频词'),
+      catchphrases: list(L4.signal).slice(0,2).map(c=>c.b).filter(Boolean).join(' '),
+      taboo_phrases: line(L3.speech_base,'禁用'),
+    },
+    relationship:{ positioning:(L4.user_position||'').split('\n')[0]||'', vibe: list(L4.stages).map(s=>s.nm).join(' → '), stages: list(L4.stages).map(s=>s.nm) },
+    greetings: list(L6.greetings),
+    system_note: L7.post_history||'',
+    prompt: P.join('\n\n'),
+  };
+}
+
+/* ────────── 左栏：角色列表 ────────── */
+function renderRoster(){
+  $('#rosterCnt').textContent = `${cards.length} 张卡`;
+  const box = $('#rosterList');
+  if(!cards.length){
+    box.innerHTML = `<div class="roster-empty">还没有角色卡<br>点击下方「＋ 导入角色卡」<br>支持一次选多个 JSON</div>`;
+  } else {
+    box.innerHTML = cards.map(c=>{
+      const av = c.portrait ? `<img src="${c.portrait}">` : esc((c.card.name||'?')[0]);
+      const sub = c.card.one_liner || c.card.intro || (c.card.tags||[]).join(' · ') || '';
+      return `<div class="rcard ${c.id===activeId?'active':''}" data-card="${c.id}">
+        <div class="r-avatar">${av}</div>
+        <div class="r-meta"><div class="r-name">${esc(c.card.name||'未命名')}</div><div class="r-sub">${esc(sub)}</div></div>
+        <span class="r-msgs">${(c.history||[]).length}条</span>
+        <button class="r-del" data-del="${c.id}" title="移除">×</button>
+      </div>`;
+    }).join('');
+  }
+  renderDetail();
+}
+
+function renderDetail(){
+  const a = active();
+  const d = $('#cardDetail');
+  if(!a){ d.innerHTML=''; d.classList.remove('show'); return; }
+  const card = a.card;
+  const p = card.personality||{}, s = card.speech_style||{}, r = card.relationship||{};
+  const rows = [
+    card.one_liner && ['一句话', card.one_liner],
+    p.traits?.length && ['性格', p.traits.join('、')],
+    p.tone && ['气质', p.tone],
+    p.contradiction && ['矛盾', p.contradiction],
+    s.particles && ['语气词', s.particles],
+    s.catchphrases && ['口头禅', s.catchphrases],
+    s.taboo_phrases && ['绝不说', s.taboo_phrases],
+    r.vibe && ['关系', r.vibe],
+    (card.tags||[]).length && ['标签', card.tags.join(' · ')],
+  ].filter(Boolean);
+  const greets = (card.greetings||[]).length
+    ? `<div class="greet-row">${card.greetings.map((g,i)=>`<button class="icon-btn" data-greet="${i}">开场 · ${esc(g.nm)}</button>`).join('')}</div>` : '';
+  d.innerHTML = rows.map(([k,v])=>`<b>${k}</b>｜${esc(v)}`).join('<br>') + greets;
+}
+
+function switchCard(id){
+  if(sending){ toast('回复生成中，稍后再切换'); return; }
+  activeId = id; persist();
+  renderRoster(); renderTop(); renderChat();
+  $('#roster').classList.remove('mobile-open');
+}
+
+$('#rosterList').addEventListener('click', e=>{
+  const del = e.target.closest('[data-del]');
+  if(del){
+    e.stopPropagation();
+    const id = del.dataset.del;
+    const c = cards.find(x=>x.id===id);
+    if(!confirm(`移除角色「${c?.card.name||''}」及其对话记录？`)) return;
+    cards = cards.filter(x=>x.id!==id);
+    if(activeId===id) activeId = cards[0]?.id || null;
+    persist(); renderRoster(); renderTop(); renderChat();
+    return;
+  }
+  const item = e.target.closest('[data-card]');
+  if(item) switchCard(item.dataset.card);
+});
+
+$('#btnDetail').onclick = ()=>{
+  const d = $('#cardDetail');
+  d.classList.toggle('show');
+  $('#btnDetail').textContent = d.classList.contains('show') ? '设定 ▴' : '设定 ▾';
+};
+
+/* 开场白快捷插入（作为角色的第一条消息进入上下文） */
+document.addEventListener('click', e=>{
+  const g = e.target.closest('[data-greet]');
+  if(!g) return;
+  const a = active(); if(!a?.card.greetings) return;
+  const greet = a.card.greetings[+g.dataset.greet];
+  if(!greet) return;
+  a.history.push({role:'assistant', content:greet.ex});
+  persist(); renderRoster(); renderChat();
+  toast(`已插入开场「${greet.nm}」，接话即可`);
+});
+
+/* ────────── 导入 ────────── */
+$('#btnImportJson').onclick = ()=> $('#fileJson').click();
+$('#fileJson').onchange = e=>{
+  const files = [...e.target.files];
+  if(!files.length) return;
+  let ok = 0, lastId = null;
+  Promise.all(files.map(f=>new Promise(res=>{
+    const rd = new FileReader();
+    rd.onload = ()=>{
+      try{
+        const card = normalizeCard(JSON.parse(rd.result));
+        const id = uid();
+        cards.push({id, card, portrait:null, history:[]});
+        ok++; lastId = id;
+      }catch(err){ toast(`「${f.name}」解析失败：${err.message}`); }
+      res();
+    };
+    rd.readAsText(f);
+  }))).then(()=>{
+    if(lastId) activeId = lastId;
+    persist(); renderRoster(); renderTop(); renderChat();
+    if(ok) toast(`已导入 ${ok} 张角色卡`);
+  });
+  e.target.value = '';
+};
+$('#btnImportImg').onclick = ()=>{
+  if(!active()){ toast('先导入并选中一张角色卡'); return; }
+  $('#fileImg').click();
+};
+$('#fileImg').onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    const a = active(); if(!a) return;
+    a.portrait = rd.result;
+    persist(); renderRoster(); renderTop(); renderChat();
+    toast(`立绘已绑定到「${a.card.name}」`);
+  };
+  rd.readAsDataURL(f);
+  e.target.value = '';
+};
+/* ────────── 亲密模式 ────────── */
+const MODES = {
+  first:     { label:'初遇', desc:'你们刚认识不久，还在互相试探的阶段。保持初识的分寸感：礼貌、克制、有距离的好奇；不过度关心，不谈私密话题，没有任何暧昧意味。玩笑可以有，但点到为止。' },
+  ambiguous: { label:'暧昧', desc:'你们互有好感，但谁都没有挑明。允许试探性的靠近：话里有话的关心、欲言又止、独处时的不自在；可以出现让人心头一跳的瞬间，但不直接表白、不挑明关系、不发生肢体亲密接触。' },
+  love:      { label:'恋爱', desc:'你们已经确定恋爱关系。可以自然流露爱意、偏袒与占有欲，称呼和语气体现亲密；但仍须保持角色本身的性格、语言指纹与底线——亲密不等于油腻，不等于人设崩塌。' },
+  online:    { label:'网聊', desc:'你们是通过网络认识的网友，从未线下见面。1:1 还原真实网聊状态：碎片化短句，想分几条发就分几条（换行即新气泡）；有秒回也有弧长了再回来的自然节奏；严禁任何场景、动作、神态描写，✦ 旁白在本模式禁用。他只通过文字、以及偶尔的辅助信息流露人设：分享歌曲时单独一行输出「♪ 歌名 - 歌手」；发一条类似朋友圈的动态时单独一行输出「◈ 内容」。不要解释这些格式。' },
+};
+const MODE_ORDER = ['first','ambiguous','love'];
+
+function currentMode(){
+  const a = active();
+  return (a && a.mode) || 'first';
+}
+/* 高优注入：作为最后一条 system 消息放在全部对话历史之后（post-history 位），每轮必发 */
+function modeInstruction(){
+  const a = active();
+  const m = MODES[currentMode()];
+  let stageNote = '';
+  const stages = a?.card?.relationship?.stages;
+  if(currentMode()!=='online' && stages && stages.length){
+    const n = stages.length, t1 = Math.ceil(n/3), t2 = Math.ceil(2*n/3);
+    const range = currentMode()==='first' ? stages.slice(0,t1)
+                : currentMode()==='ambiguous' ? stages.slice(t1,t2)
+                : stages.slice(t2);
+    if(range.length) stageNote = `\n对应人设中的关系阶段：${range.join('、')}。其余阶段的行为方式本轮禁用。`;
+  }
+  return `【当前亲密模式：${m.label}】\n${m.desc}${stageNote}\n此指令优先级高于人设中的默认关系进度；模式只调整关系温度，不改变角色的性格、口吻与禁忌。`;
+}
+
+/* ────────── 开场背景 ────────── */
+function allOpenings(a){
+  const presets = (a.card.greetings||[]).map(g=>({nm:g.nm, sc:g.sc||'', ex:g.ex||'', preset:true}));
+  return [...presets, ...(a.customOpenings||[]).map(o=>({nm:o.nm, sc:o.sc, ex:'', preset:false}))];
+}
+$('#btnOpenings').onclick = ()=>{
+  const a = active(); if(!a){ toast('先选中一张角色卡'); return; }
+  $('#openingCardName').textContent = a.card.name;
+  renderOpenings();
+  $('#openingModal').classList.add('show');
+};
+function renderOpenings(){
+  const a = active(); if(!a) return;
+  const list = allOpenings(a);
+  $('#openingList').innerHTML = list.length ? list.map((o,i)=>`
+    <div class="op-item ${a.opening && a.opening.nm===o.nm ? 'on':''}">
+      <div class="op-nm">${esc(o.nm)}<span class="op-src">${o.preset?'卡内预设':'自建'}</span></div>
+      ${o.sc?`<div class="op-sc">${esc(o.sc)}</div>`:''}
+      <div class="op-acts">
+        <button class="icon-btn" data-op-enable="${i}">启用</button>
+        ${!o.preset?`<button class="icon-btn" data-op-del="${i}">删除</button>`:''}
+      </div>
+    </div>`).join('') : '<div class="calls-empty">此卡暂无开场背景<br>在下方创建一个</div>';
+}
+$('#openingList').addEventListener('click', e=>{
+  const a = active(); if(!a) return;
+  const en = e.target.closest('[data-op-enable]');
+  const del = e.target.closest('[data-op-del]');
+  const list = allOpenings(a);
+  if(en){
+    const o = list[+en.dataset.opEnable]; if(!o) return;
+    a.opening = {nm:o.nm, sc:o.sc};
+    if(o.ex && !a.history.length){
+      a.history.push({role:'assistant', content:o.ex});
+      renderChat();
+    }
+    persist(); renderTop(); renderOpenings();
+    toast(`已启用开场「${o.nm}」`);
+  } else if(del){
+    const idx = +del.dataset.opDel - (a.card.greetings||[]).length;
+    a.customOpenings.splice(idx, 1);
+    persist(); renderOpenings();
+  }
+});
+$('#btnOpSave').onclick = ()=>{
+  const a = active(); if(!a) return;
+  const nm = $('#opName').value.trim(), sc = $('#opText').value.trim();
+  if(!nm || !sc){ toast('名称和背景描述都要填'); return; }
+  a.customOpenings = a.customOpenings || [];
+  a.customOpenings.push({nm, sc});
+  a.opening = {nm, sc};
+  $('#opName').value = ''; $('#opText').value = '';
+  persist(); renderTop(); renderOpenings();
+  toast(`开场「${nm}」已保存并启用`);
+};
+$('#btnOpOff').onclick = ()=>{
+  const a = active(); if(!a) return;
+  a.opening = null;
+  persist(); renderTop(); renderOpenings();
+  toast('已停用开场背景');
+};
+
+/* ────────── 顶栏 / API 设置 / Prompt 预览 ────────── */
+function renderTop(){
+  const a = active();
+  $('#topName').textContent = a ? a.card.name : '角色卡试炼场';
+  $('#topAvatar').innerHTML = a
+    ? (a.portrait ? `<img src="${a.portrait}">` : esc((a.card.name||'?')[0]))
+    : '?';
+  const op = a?.opening ? ` · 开场：${a.opening.nm}` : '';
+  $('#topModel').textContent = (settings.model ? `${settings.model} · temp ${settings.temperature}` : '未配置模型') + op;
+  document.querySelectorAll('#modeSeg button').forEach(b=> b.classList.toggle('on', b.dataset.mode===currentMode()));
+}
+
+$('#modeSeg').addEventListener('click', e=>{
+  const b = e.target.closest('[data-mode]');
+  if(!b) return;
+  const a = active();
+  if(!a){ toast('先导入并选中一张角色卡'); return; }
+  a.mode = b.dataset.mode; persist();
+  renderTop();
+  sysMsg(`已切换到「${MODES[a.mode].label}模式」，下一条消息起生效`);
+});
+
+$('#btnApi').onclick = ()=>{
+  $('#setBase').value = settings.baseUrl;
+  $('#setKey').value = settings.apiKey;
+  $('#setModel').value = settings.model;
+  $('#setTemp').value = settings.temperature;
+  $('#apiModal').classList.add('show');
+};
+$('#btnSaveApi').onclick = ()=>{
+  settings = {
+    baseUrl: $('#setBase').value.trim().replace(/\/+$/,''),
+    apiKey: $('#setKey').value.trim(),
+    model: $('#setModel').value.trim(),
+    temperature: parseFloat($('#setTemp').value)||0.9,
+  };
+  localStorage.setItem(LS.settings, JSON.stringify(settings));
+  $('#apiModal').classList.remove('show');
+  renderTop();
+  toast('设置已保存');
+};
+document.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=> $('#'+b.dataset.close).classList.remove('show'));
+document.querySelectorAll('.modal').forEach(m=> m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('show'); }));
+
+$('#btnPrompt').onclick = ()=>{
+  const a = active();
+  $('#promptPre').textContent = getSystemPrompt()
+    + (a?.opening?.sc ? `\n\n──────── 开场背景（system 位注入）────────\n\n【开场背景】\n${a.opening.sc}` : '')
+    + '\n\n──────── 每轮调用末尾追加（最高优先级位置）────────\n\n' + modeInstruction();
+  $('#promptModal').classList.add('show');
+};
+$('#btnCopyPrompt').onclick = ()=> navigator.clipboard.writeText($('#promptPre').textContent).then(()=>toast('已复制'));
+
+function getSystemPrompt(){
+  const a = active();
+  if(!a) return '（未加载角色卡）';
+  const card = a.card;
+  if(card.prompt) return card.prompt;                       // 卡自带拼装好的 prompt
+  // 兼容手写/其他来源 JSON：尽量拼一份
+  const parts = [`你是${card.name}。${card.one_liner||''}`];
+  const p = card.personality||{}, s = card.speech_style||{};
+  if(p.traits?.length) parts.push('性格：'+p.traits.join('、'));
+  if(p.tone) parts.push('气质：'+p.tone);
+  if(s.rhythm) parts.push('句长节奏：'+s.rhythm);
+  if(s.particles) parts.push('语气词：'+s.particles);
+  if(s.catchphrases) parts.push('口头禅：'+s.catchphrases);
+  if(card.system_note) parts.push(card.system_note);
+  parts.push(OUTPUT_RULES);
+  return parts.join('\n');
+}
+
+/* ────────── 聊天渲染 ────────── */
+function charAvatar(){
+  const a = active();
+  return `<div class="m-avatar">${a && a.portrait?`<img src="${a.portrait}">`:esc((a?.card.name||'他')[0])}</div>`;
+}
+/* 把角色输出拆成「对话」与「剧情旁白」两类块：
+   ✦ 开头的行 → 旁白；行内（括号动作）也拆出为旁白，保证对话区永远纯净 */
+function parseAssistant(content){
+  const segs = [];
+  const push = (t, text)=>{
+    text = text.trim(); if(!text) return;
+    if(segs.length && segs[segs.length-1].t===t) segs[segs.length-1].text += '\n'+text;
+    else segs.push({t, text});
+  };
+  content.split('\n').forEach(raw=>{
+    const line = raw.trim();
+    if(!line) return;
+    if(line.startsWith('✦')){ push('narr', line.replace(/^✦\s*/, '')); return; }
+    if(line.startsWith('♪')){ push('song', line.replace(/^♪\s*/, '')); return; }
+    if(line.startsWith('◈')){ push('moment', line.replace(/^◈\s*/, '')); return; }
+    const re = /[（(][^（）()]*[）)]/g;
+    let m, last = 0;
+    while((m = re.exec(line))){
+      push('dlg', line.slice(last, m.index));
+      push('narr', m[0].replace(/^[（(]|[）)]$/g, ''));
+      last = m.index + m[0].length;
+    }
+    push('dlg', line.slice(last));
+  });
+  return segs;
+}
+function addBubble(role, content, cls){
+  const box = $('#chatScroll');
+  if(role==='assistant' && content){
+    let avShown = false, last = null;
+    parseAssistant(content).forEach(s=>{
+      const div = document.createElement('div');
+      if(s.t==='narr'){
+        div.className = 'msg narr';
+        div.innerHTML = `<div class="bubble serif">${esc(s.text)}</div>`;
+      } else if(s.t==='song' || s.t==='moment'){
+        div.className = 'msg ' + s.t;
+        div.innerHTML = `<div class="bubble serif">${esc(s.text)}</div>`;
+      } else {
+        div.className = 'msg char';
+        div.innerHTML = `${avShown?'<div class="m-avatar" style="visibility:hidden"></div>':charAvatar()}<div class="bubble">${esc(s.text)}</div>`;
+        avShown = true;
+      }
+      box.appendChild(div); last = div;
+    });
+    box.scrollTop = box.scrollHeight;
+    return last;
+  }
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role==='user'?'user':role==='sys'?'sys':'char') + (cls?' '+cls:'');
+  if(role==='sys'){
+    div.innerHTML = `<div class="bubble">${esc(content)}</div>`;
+  } else {
+    const av = role==='user' ? `<div class="m-avatar">你</div>` : charAvatar();
+    div.innerHTML = `${av}<div class="bubble">${esc(content)}</div>`;
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+function sysMsg(t, cls){ addBubble('sys', t, cls); }
+
+function renderChat(){
+  const box = $('#chatScroll');
+  box.innerHTML = '';
+  const a = active();
+  if(!a){ sysMsg('请先在左侧导入角色卡（支持多选）并配置模型 API。'); return; }
+  if(!a.history.length){ sysMsg(`已就位。和「${a.card.name}」说点什么吧。`); return; }
+  a.history.forEach(m=> addBubble(m.role, m.content));
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ────────── 调用日志 ────────── */
+function renderCalls(){
+  const box = $('#callsList');
+  if(!calls.length){
+    box.innerHTML = `<div class="calls-empty">尚未调用<br>每发一条消息，这里记录<br>完整请求包与响应</div>`;
+    return;
+  }
+  box.innerHTML = calls.map((c,i)=>{
+    const head = c.ok
+      ? `<span class="c-ok">✓</span> ${esc(c.cardName)} · ${esc(c.model)}`
+      : `<span class="c-bad">✗</span> ${esc(c.cardName)} · ${esc(c.model)}`;
+    const meta = c.ok
+      ? `system ${c.systemLen}字 · 历史${c.historyLen}条 · ${c.latency}s · 回复${c.replyLen}字` + (c.usage ? ` · tok ${c.usage.prompt_tokens??'?'}→${c.usage.completion_tokens??'?'}` : '')
+      : esc(c.error||'').slice(0,80);
+    return `<div class="call" data-call="${i}">
+      <div class="c-line1">${head}<span class="c-time">${c.time}</span></div>
+      <div class="c-meta">${meta}</div>
+      <div class="c-detail">
+        <h4>请求包</h4><pre>${esc(JSON.stringify(c.request, null, 2))}</pre>
+        <h4>响应</h4><pre>${esc(c.response||'（无）')}</pre>
+      </div>
+    </div>`;
+  }).join('');
+  box.scrollTop = 0;
+}
+$('#callsList').addEventListener('click', e=>{
+  const item = e.target.closest('[data-call]');
+  if(item) item.classList.toggle('open');
+});
+$('#btnClearCalls').onclick = ()=>{ calls = []; renderCalls(); };
+
+/* ────────── 发送 ────────── */
+async function send(){
+  const a = active();
+  const text = $('#input').value.trim();
+  if(!text || sending) return;
+  if(!a){ toast('请先导入角色卡'); return; }
+  if(!settings.baseUrl || !settings.model){ toast('请先完成模型 API 设置'); $('#btnApi').click(); return; }
+
+  sending = true; $('#btnSend').disabled = true;
+  $('#input').value = ''; autosize();
+  a.history.push({role:'user', content:text});
+  addBubble('user', text);
+  renderRoster();
+
+  const live = document.createElement('div');
+  live.className = 'msg char';
+  live.innerHTML = `${charAvatar()}<div class="bubble typing"></div>`;
+  $('#chatScroll').appendChild(live);
+  $('#chatScroll').scrollTop = $('#chatScroll').scrollHeight;
+  const bubble = live.querySelector('.bubble');
+  let acc = '', usage = null;
+
+  const reqMessages = [{role:'system', content:getSystemPrompt()}];
+  if(a.opening?.sc) reqMessages.push({role:'system', content:'【开场背景】\n' + a.opening.sc});
+  reqMessages.push(...a.history.slice(-40), {role:'system', content:modeInstruction()});
+  const reqBody = {
+    model: settings.model,
+    temperature: settings.temperature,
+    stream: true,
+    stream_options: {include_usage: true},
+    messages: reqMessages,
+  };
+  const log = {
+    ok:false, time:new Date().toLocaleTimeString(),
+    cardName:a.card.name, model:settings.model, temp:settings.temperature,
+    systemLen:reqBody.messages[0].content.length, historyLen:a.history.length,
+    request:reqBody, response:'', error:'',
+  };
+  const t0 = performance.now();
+
+  try{
+    const resp = await fetch(settings.baseUrl + '/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(settings.apiKey ? {Authorization:'Bearer '+settings.apiKey} : {}) },
+      body: JSON.stringify(reqBody),
+    });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}：${(await resp.text()).slice(0,300)}`);
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for(const line of lines){
+        const t = line.trim();
+        if(!t.startsWith('data:')) continue;
+        const payload = t.slice(5).trim();
+        if(payload === '[DONE]') continue;
+        try{
+          const j = JSON.parse(payload);
+          const delta = j.choices?.[0]?.delta?.content;
+          if(delta){ acc += delta; bubble.textContent = acc; $('#chatScroll').scrollTop = $('#chatScroll').scrollHeight; }
+          if(j.usage) usage = j.usage;
+        }catch(e){}
+      }
+    }
+    if(!acc) throw new Error('接口返回为空（可能不支持流式，请检查模型/端点）');
+    log.ok = true;
+  }catch(err){
+    bubble.classList.remove('typing');
+    live.classList.add('err');
+    bubble.textContent = '出错了：' + err.message;
+    log.error = err.message;
+    log.latency = ((performance.now()-t0)/1000).toFixed(1);
+    calls.unshift(log); renderCalls();
+    sending = false; $('#btnSend').disabled = false;
+    return;
+  }
+
+  log.latency = ((performance.now()-t0)/1000).toFixed(1);
+  log.response = acc;
+  log.replyLen = acc.length;
+  log.usage = usage;
+  calls.unshift(log); renderCalls();
+
+  a.history.push({role:'assistant', content:acc});
+  persist();
+  live.remove();          // 流式临时气泡换成分块渲染
+  renderRoster();
+  renderChat();
+  sending = false; $('#btnSend').disabled = false;
+  $('#input').focus();
+}
+
+$('#btnSend').onclick = send;
+$('#input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+function autosize(){ const ta=$('#input'); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; }
+$('#input').addEventListener('input', autosize);
+
+$('#btnClearChat').onclick = ()=>{
+  const a = active();
+  if(!a || !a.history.length) return;
+  if(!confirm(`清空与「${a.card.name}」的对话记录？`)) return;
+  a.history = []; persist(); renderRoster(); renderChat();
+};
+
+/* 移动端侧栏开关 */
+function checkMobile(){ $('#btnSide').style.display = matchMedia('(max-width:820px)').matches ? '' : 'none'; }
+checkMobile(); addEventListener('resize', checkMobile);
+$('#btnSide').onclick = ()=> $('#roster').classList.toggle('mobile-open');
+
+/* ────────── 启动 ────────── */
+initCards();
+renderRoster();
+renderTop();
+renderChat();
+renderCalls();
+</script></body></html>

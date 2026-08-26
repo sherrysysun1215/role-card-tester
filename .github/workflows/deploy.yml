@@ -1,0 +1,44 @@
+name: 构建并部署分享版到 Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 从 Secrets 写入共享 API 配置
+        env:
+          API_BASE: ${{ secrets.SHARE_API_BASE }}
+          API_KEY: ${{ secrets.SHARE_API_KEY }}
+          API_MODEL: ${{ secrets.SHARE_API_MODEL }}
+          API_TEMP: ${{ secrets.SHARE_API_TEMP }}
+        run: python3 write_shared_api.py
+      - name: 构建 share/index.html
+        run: python3 build_share.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: share
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
