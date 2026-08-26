@@ -343,12 +343,35 @@ function persist(){
   }catch(e){ toast('本地存储已满（立绘过大？），更改仅本次会话生效'); }
 }
 
-/* 日常聊天输出约定：角色只输出对话，情景描述走单独的剧情旁白（✦ 开头） */
+/* 输出格式基线（中性：不写动作也不禁动作）——会被烤进 card.prompt；
+   真正生效的规则由 outputRulesOverride() 按当前模式在 post-history 位下发，覆盖这里 */
 const OUTPUT_RULES = `【输出格式】
+- 你只输出角色的对话内容，不使用任何括号。
+- 回复简短自然，符合日常聊天节奏，一次回复里最多一句认真的话。
+- 设定示例中出现的括号动作仅用于说明语感，实际输出一律不用。`;
+
+/* 线上（网聊）模式：禁动作、✦ 旁白禁用、碎片化短句 */
+const OUTPUT_RULES_ONLINE = `【输出格式】
 - 你只输出角色的对话内容：不写动作、神态、心理、场景描写，不使用任何括号。
 - 若确需情景或氛围描述，单独成行并以「✦」开头——它会作为剧情旁白单独展示，不会混进对话。
 - 回复简短自然，符合日常聊天节奏，一次回复里最多一句认真的话。
 - 设定示例中出现的括号动作仅用于说明语感，实际输出一律不用。`;
+
+/* 线下（初遇/暧昧/恋爱）模式：允许并鼓励 ✦ 动作行 */
+const OUTPUT_RULES_OFFLINE = `【输出格式】
+- 你的回复以对话为主，但【允许并鼓励】用动作回应。
+- 动作、神态、环境描写单独成行，以「✦」开头输出，不要写进对话行，不要用括号。
+- 当对方表达情绪或不适时，【优先用一个动作回应，而不是用语言开导】。例：✦ 把热的那杯往她面前推了推
+- 禁止给建议清单、禁止分析对方情绪的成因、禁止询问干预效果（如"是不是好点了""感觉怎么样"）。
+- 一次回复 1–3 句，最多一句认真的话；禁止三句以上结构相同的排比。`;
+
+/* 后置覆盖：按当前模式返回对应输出规则，在 post-history 位覆盖 system 里的旧规则。
+   模式是否算"线上"由 modes.json 里该档的 channel 字段决定（缺省按 id==='online' 判断） */
+function outputRulesOverride(){
+  const m = MODES[currentMode()] || {};
+  const online = m.channel ? m.channel==='online' : currentMode()==='online';
+  return '【输出格式 · 本轮生效，覆盖前文所有输出格式约定】\n' + (online ? OUTPUT_RULES_ONLINE : OUTPUT_RULES_OFFLINE);
+}
 
 /* ────────── 格式适配：character-bible（L1–L7 分层）→ 内部卡结构 ────────── */
 function normalizeCard(j){
@@ -584,7 +607,7 @@ const DEFAULT_MODES = [
   { id:'first',     label:'初遇', stageRange:[0, 0.333],     desc:'你们刚认识不久，还在互相试探的阶段。保持初识的分寸感：礼貌、克制、有距离的好奇；不过度关心，不谈私密话题，没有任何暧昧意味。玩笑可以有，但点到为止。' },
   { id:'ambiguous', label:'暧昧', stageRange:[0.333, 0.667], desc:'你们互有好感，但谁都没有挑明。允许试探性的靠近：话里有话的关心、欲言又止、独处时的不自在；可以出现让人心头一跳的瞬间，但不直接表白、不挑明关系、不发生肢体亲密接触。' },
   { id:'love',      label:'恋爱', stageRange:[0.667, 1],     desc:'你们已经确定恋爱关系。可以自然流露爱意、偏袒与占有欲，称呼和语气体现亲密；但仍须保持角色本身的性格、语言指纹与底线——亲密不等于油腻，不等于人设崩塌。' },
-  { id:'online',    label:'网聊', stageRange:null,           desc:'你们是通过网络认识的网友，从未线下见面。1:1 还原真实网聊状态：碎片化短句，想分几条发就分几条（换行即新气泡）；有秒回也有弧长了再回来的自然节奏；严禁任何场景、动作、神态描写，✦ 旁白在本模式禁用。他只通过文字、以及偶尔的辅助信息流露人设：分享歌曲时单独一行输出「♪ 歌名 - 歌手」；发一条类似朋友圈的动态时单独一行输出「◈ 内容」。不要解释这些格式。' },
+  { id:'online',    label:'网聊', stageRange:null,           channel:'online', desc:'你们是通过网络认识的网友，从未线下见面。1:1 还原真实网聊状态：碎片化短句，想分几条发就分几条（换行即新气泡）；有秒回也有弧长了再回来的自然节奏；严禁任何场景、动作、神态描写，✦ 旁白在本模式禁用。他只通过文字、以及偶尔的辅助信息流露人设：分享歌曲时单独一行输出「♪ 歌名 - 歌手」；发一条类似朋友圈的动态时单独一行输出「◈ 内容」。不要解释这些格式。' },
 ];
 const MODES_LIST = (Array.isArray(PRESET_MODES) && PRESET_MODES.length) ? PRESET_MODES : DEFAULT_MODES;
 const MODES = Object.fromEntries(MODES_LIST.map(m=>[m.id, m]));
@@ -738,7 +761,7 @@ $('#btnPrompt').onclick = ()=>{
   $('#promptPre').textContent = getSystemPrompt()
     + (op ? `\n\n──────── 开场背景（当前档位：${op.tier}）────────\n\n${op.text}` : '')
     + (mem.length ? `\n\n──────── 记忆（system 位注入）────────\n\n【角色对用户的记忆】\n` + mem.map(m=>'· '+m).join('\n') : '')
-    + '\n\n──────── 每轮调用末尾追加（最高优先级位置）────────\n\n' + modeInstruction();
+    + '\n\n──────── 每轮调用末尾追加（最高优先级位置）────────\n\n' + outputRulesOverride() + '\n\n' + modeInstruction();
   $('#promptModal').classList.add('show');
 };
 $('#btnCopyPrompt').onclick = ()=> navigator.clipboard.writeText($('#promptPre').textContent).then(()=>toast('已复制'));
@@ -896,7 +919,9 @@ async function send(){
   if(op) reqMessages.push({role:'system', content:op.text});
   const mem = a.memory || [];
   if(mem.length) reqMessages.push({role:'system', content:'【角色对用户的记忆】\n' + mem.map(m=>'· '+m).join('\n')});
-  reqMessages.push(...a.history.slice(-40), {role:'system', content:modeInstruction()});
+  reqMessages.push(...a.history.slice(-40),
+    {role:'system', content:outputRulesOverride()},
+    {role:'system', content:modeInstruction()});
   const reqBody = {
     model: settings.model,
     temperature: settings.temperature,
